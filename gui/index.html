@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SomeTools</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #main-container {
+            display: flex;
+            flex-direction: column;
+            width: 95%;
+            height: 90%;
+            gap: 10px;
+        }
+        #drop-container {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+            min-height: 0; /* Allow shrinking */
+        }
+        .drop-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .drop-zone {
+            flex: 0 0 auto; /* Don't grow, don't shrink */
+            width: 100px;
+            height: 100px;
+            min-height: 100px;
+            border: 3px dashed #aaa;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            color: #aaa;
+            font-size: 12px;
+            transition: border-color 0.3s, color 0.3s;
+            flex-direction: column;
+            text-align: center;
+            padding: 5px;
+            margin: 0 auto; /* Center in column */
+        }
+        .drop-zone.dragover {
+            border: 3px solid transparent;
+            color: #333;
+            background-color: #e8e8e8;
+            background-image: 
+                linear-gradient(90deg, #333 50%, transparent 50%),
+                linear-gradient(90deg, #333 50%, transparent 50%),
+                linear-gradient(0deg, #333 50%, transparent 50%),
+                linear-gradient(0deg, #333 50%, transparent 50%);
+            background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+            background-size: 20px 3px, 20px 3px, 3px 20px, 3px 20px;
+            background-position: 0 0, 0 100%, 0 0, 100% 0;
+            animation: march 0.5s linear infinite;
+        }
+        @keyframes march {
+            0% {
+                background-position: 0 0, 0 100%, 0 0, 100% 0;
+            }
+            100% {
+                background-position: 20px 0, -20px 100%, 0 -20px, 100% 20px;
+            }
+        }
+        .controls-panel {
+            background: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            flex: 1; /* Take remaining height */
+        }
+        .controls-panel h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+        }
+        .controls-panel label {
+            display: block;
+            margin-bottom: 3px;
+        }
+        #qr-result {
+            margin-top: 10px;
+            text-align: center;
+            overflow: auto;
+            min-height: 300px; /* Reserve space */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            border: 1px solid #eee;
+        }
+        #qr-result img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+        #status {
+            margin-top: 10px;
+            font-size: 16px;
+            color: #333;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="main-container">
+        <div id="drop-container">
+            <!-- Column 1: Split Atlas -->
+            <div class="drop-column">
+                <div class="controls-panel">
+                    <h3>Split Atlas</h3>
+                    <label for="gap">Gap Tolerance (px): </label>
+                    <input type="number" id="gap" value="2" min="0" max="100" style="width: 50px;">
+                </div>
+                <div id="drop-zone" class="drop-zone">
+                    Drop Image<br>(Split)
+                </div>
+            </div>
+
+            <!-- Column 2: Resize/Convert -->
+            <div class="drop-column">
+                <div class="controls-panel">
+                    <h3>Resize & Convert</h3>
+                                    <div class="control-group">
+                    <label>Scale:</label>
+                    <input type="number" id="resize-scale" value="1.0" step="0.1" min="0.1">
+                </div>
+                    <label><input type="radio" name="resize-mode" value="fixed"> Fixed: <input type="number" id="resize-width" placeholder="W" style="width: 40px;"> x <input type="number" id="resize-height" placeholder="H" style="width: 40px;"></label>
+                    
+                    <div style="margin-top: 5px; border-top: 1px solid #eee; padding-top: 5px;">
+                        <label style="font-weight: bold; font-size: 12px;">HSV Adjust:</label>
+                        <div style="display: flex; flex-direction: column; gap: 2px; font-size: 12px;">
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span style="width: 15px;">H:</span>
+                                <input type="range" id="hsv-h" value="0" min="-180" max="180" style="flex: 1;">
+                                <input type="number" id="hsv-h-val" value="0" min="-180" max="180" style="width: 45px; text-align: right;">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span style="width: 15px;">S:</span>
+                                <input type="range" id="hsv-s" value="0" min="-100" max="100" style="flex: 1;">
+                                <input type="number" id="hsv-s-val" value="0" min="-100" max="100" style="width: 45px; text-align: right;">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span style="width: 15px;">V:</span>
+                                <input type="range" id="hsv-v" value="0" min="-100" max="100" style="flex: 1;">
+                                <input type="number" id="hsv-v-val" value="0" min="-100" max="100" style="width: 45px; text-align: right;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <label><input type="checkbox" id="resize-png8"> Save as PNG8</label>
+                    <label><input type="checkbox" id="resize-overwrite"> Overwrite original</label>
+                    <label>Suffix: <input type="text" id="resize-suffix" value="_resized" style="width: 60px;"></label>
+                </div>
+                <div id="resize-drop-zone" class="drop-zone">
+                    Drop Image<br>(Resize)
+                </div>
+            </div>
+
+            <!-- Column 3: QR Code -->
+            <div class="drop-column">
+                <div class="controls-panel">
+                    <h3>Generate QR</h3>
+                    <textarea id="qr-text" placeholder="Enter text here..." style="width: 95%; height: 60px; margin-bottom: 5px;"></textarea>
+                    <button id="qr-btn" style="width: 100%;">Generate QR</button>
+                    <p style="margin:5px 0 0 0; color:#666; font-size: 12px;">Or drop text file below</p>
+                </div>
+                <div id="qr-drop-zone" class="drop-zone">
+                    Drop File<br>(Read Text)
+                </div>
+                <div id="qr-result"></div>
+            </div>
+        </div>
+        <div id="status">Ready</div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

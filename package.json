@@ -1,0 +1,44 @@
+{
+  "name": "sometools",
+  "version": "1.0.0",
+  "description": "Image processing tools",
+  "main": "gui/main.js",
+  "author": "User",
+  "scripts": {
+    "start": "electron gui/main.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "build": "electron-builder"
+  },
+  "build": {
+    "appId": "com.erweima.sometools",
+    "productName": "SomeTools",
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "files": [
+      "gui/**/*",
+      "image.js",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/pngquant-bin/**/*",
+      "**/node_modules/bin-wrapper/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    }
+  },
+  "dependencies": {
+    "jimp": "^1.6.0",
+    "pngquant-bin": "^6.0.1",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "electron": "^39.2.4",
+    "electron-builder": "^26.0.12"
+  }
+}
