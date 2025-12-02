@@ -181,6 +181,20 @@
                 </div>
                 <div id="qr-result"></div>
             </div>
+
+            <!-- Column 4: Real-time Preview -->
+            <div class="drop-column">
+                <div class="controls-panel">
+                    <h3>Preview</h3>
+                    <p style="font-size: 12px; color: #666; margin: 0;">Drop image here to preview HSV adjustments from the Resize column.</p>
+                </div>
+                <div id="rt-drop-zone" class="drop-zone">
+                    Drop Image<br>(Preview)
+                </div>
+                <div id="rt-preview" style="margin-top: 10px; text-align: center; overflow: auto; border: 1px solid #eee; display: none; background: #fff; max-height: 300px;">
+                    <img id="rt-image" style="width: 100%; display: block;">
+                </div>
+            </div>
         </div>
         <div id="status">Ready</div>
     </div>

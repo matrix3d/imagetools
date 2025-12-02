@@ -13,6 +13,8 @@ const fixPath = () => {
 };
 fixPath();
 
+let previewWindow = null;
+
 function createWindow() {
     const win = new BrowserWindow({
         width: 800,
@@ -57,6 +59,43 @@ function createWindow() {
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
 }
+
+function createPreviewWindow() {
+    if (previewWindow && !previewWindow.isDestroyed()) {
+        previewWindow.focus();
+        return previewWindow;
+    }
+
+    previewWindow = new BrowserWindow({
+        width: 600,
+        height: 600,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        }
+    });
+
+    previewWindow.loadFile(path.join(__dirname, 'preview.html'));
+
+    previewWindow.on('closed', () => {
+        previewWindow = null;
+    });
+
+    return previewWindow;
+}
+
+ipcMain.on('open-preview-window', (event, { dataUrl }) => {
+    const win = createPreviewWindow();
+    win.webContents.on('did-finish-load', () => {
+        win.webContents.send('set-image', dataUrl);
+    });
+});
+
+ipcMain.on('update-preview-filter', (event, { h, s, v }) => {
+    if (previewWindow && !previewWindow.isDestroyed()) {
+        previewWindow.webContents.send('set-filter', { h, s, v });
+    }
+});
 
 ipcMain.handle('split-atlas', async (event, { filePath, outputDir, gap }) => {
     console.log('Main process received split-atlas request:', filePath);

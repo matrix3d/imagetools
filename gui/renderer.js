@@ -1,5 +1,5 @@
 const path = require('path');
-const { webUtils } = require('electron');
+const { webUtils, ipcRenderer } = require('electron');
 const fs = require('fs');
 const QRCode = require('qrcode');
 const { Jimp } = require('jimp');
@@ -35,10 +35,44 @@ const hsvHVal = document.getElementById('hsv-h-val');
 const hsvSVal = document.getElementById('hsv-s-val');
 const hsvVVal = document.getElementById('hsv-v-val');
 
+// Real-time Preview Controls
+const rtDropZone = document.getElementById('rt-drop-zone');
+// const rtScaleInput = document.getElementById('rt-scale'); // Removed
+const rtPreview = document.getElementById('rt-preview');
+const rtImage = document.getElementById('rt-image');
+
 // Update HSV value displays
 function syncInputs(rangeInput, numberInput) {
-    rangeInput.addEventListener('input', () => numberInput.value = rangeInput.value);
-    numberInput.addEventListener('input', () => rangeInput.value = numberInput.value);
+    rangeInput.addEventListener('input', () => {
+        numberInput.value = rangeInput.value;
+        updatePreviewFilter();
+    });
+    numberInput.addEventListener('input', () => {
+        rangeInput.value = numberInput.value;
+        updatePreviewFilter();
+    });
+}
+
+function updatePreviewFilter() {
+    if (rtImage.src) {
+        const h = parseInt(hsvHInput.value) || 0;
+        const s = parseInt(hsvSInput.value) || 0;
+        const v = parseInt(hsvVInput.value) || 0;
+        
+        // Map to CSS filters
+        // Hue: deg
+        // Saturation: 100% is base. -100 -> 0%, 100 -> 200%
+        // Brightness: 100% is base. -100 -> 0%, 100 -> 200%
+        
+        const cssS = 100 + s;
+        const cssV = 100 + v;
+        
+        const filterStr = `hue-rotate(${h}deg) saturate(${cssS}%) brightness(${cssV}%)`;
+        rtImage.style.filter = filterStr;
+
+        // sync filter to external preview window
+        ipcRenderer.send('update-preview-filter', { h, s, v });
+    }
 }
 
 syncInputs(hsvHInput, hsvHVal);
@@ -373,3 +407,56 @@ resizeDropZone.addEventListener('drop', async (e) => {
         }, 2000);
     }
 });
+
+// Real-time Preview Drop Zone Event Listeners
+rtDropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    rtDropZone.classList.add('dragover');
+    rtDropZone.textContent = 'Drop it!';
+});
+
+rtDropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    rtDropZone.classList.remove('dragover');
+    rtDropZone.innerHTML = 'Drag & Drop Image<br>(Preview)';
+});
+
+rtDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    rtDropZone.classList.remove('dragover');
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        const file = files[0];
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                rtImage.src = e.target.result;
+                rtPreview.style.display = 'block';
+                rtDropZone.textContent = 'Image Loaded';
+                statusDiv.textContent = 'Image loaded for preview. Adjust HSV sliders to see changes.';
+                // Apply current filters
+                updatePreviewFilter();
+                rtImage.style.width = '100%';
+
+                // Also open in separate preview window
+                ipcRenderer.send('open-preview-window', { dataUrl: e.target.result });
+            };
+            reader.readAsDataURL(file);
+        } else {
+            statusDiv.textContent = 'Please drop an image file.';
+        }
+    }
+});
+
+// rtScaleInput removed
+/*
+rtScaleInput.addEventListener('input', (e) => {
+    const val = e.target.value;
+    rtImage.style.width = `${val}%`;
+    statusDiv.textContent = `Scale: ${val}%`;
+});
+*/
