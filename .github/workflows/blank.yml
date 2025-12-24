@@ -1,10 +1,7 @@
 name: Build Electron App
 
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+  workflow_dispatch: # ⭐ 这一行会在 Actions 页面生成“手动运行”按钮
 
 jobs:
   build:
