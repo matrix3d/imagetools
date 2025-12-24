@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Image processing tools",
   "main": "gui/main.js",
-  "author": "User",
+  "author": "lizhi <lizhi@example.com>", 
   "scripts": {
     "start": "electron gui/main.js",
     "pack": "electron-builder --dir",
