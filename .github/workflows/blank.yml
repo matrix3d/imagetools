@@ -37,4 +37,3 @@ jobs:
           else
             npm run dist:linux
           fi
-          prerelease: false
