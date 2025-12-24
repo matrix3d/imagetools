@@ -34,3 +34,22 @@ jobs:
           else
             npm run dist:linux
           fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        # if: github.event_name == 'push' # 可选：只有 push 时才发布
+        with:
+          # 使用构建次数生成唯一 Tag，例如 v1.0.1, v1.0.2
+          tag_name: v1.0.${{ github.run_number }}
+          name: Release v1.0.${{ github.run_number }}
+          # 自动识别不同系统的打包结果
+          files: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
