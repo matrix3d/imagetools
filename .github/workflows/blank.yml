@@ -26,6 +26,7 @@ jobs:
         run: npm install
 
       - name: Build
+        shell: bash # 关键：强制 Windows 也使用 bash 语法
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
