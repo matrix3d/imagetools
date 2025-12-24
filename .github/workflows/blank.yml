@@ -1,7 +1,11 @@
 name: Build Electron App
 
 on:
-  workflow_dispatch: # ⭐ 这一行会在 Actions 页面生成“手动运行”按钮
+  workflow_dispatch: 
+
+# 1. 必须声明权限
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -9,6 +13,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+
+    # 2. 全局设置 Token，下面就不需要重复写 env 了
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout
@@ -23,9 +32,7 @@ jobs:
         run: npm install
 
       - name: Build
-        shell: bash # 关键：强制 Windows 也使用 bash 语法
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             npm run dist:win
@@ -37,12 +44,10 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
-        # if: github.event_name == 'push' # 可选：只有 push 时才发布
         with:
-          # 使用构建次数生成唯一 Tag，例如 v1.0.1, v1.0.2
+          # 使用构建号确保 Tag 唯一，避免冲突
           tag_name: v1.0.${{ github.run_number }}
           name: Release v1.0.${{ github.run_number }}
-          # 自动识别不同系统的打包结果
           files: |
             dist/*.exe
             dist/*.dmg
@@ -51,5 +56,4 @@ jobs:
             dist/*.deb
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # 这里不需要再写 env 了，因为上面 job 级已经定义了
