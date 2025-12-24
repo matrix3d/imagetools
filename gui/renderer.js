@@ -3,6 +3,10 @@ const { webUtils, ipcRenderer } = require('electron');
 const fs = require('fs');
 const QRCode = require('qrcode');
 const { Jimp } = require('jimp');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+ffmpeg.setFfmpegPath(ffmpegPath);
+
 // Directly require the image processing module
 // Since nodeIntegration is true, we can do this.
 const splitAtlas = require('../image.js');
@@ -26,6 +30,9 @@ const resizePng8Checkbox = document.getElementById('resize-png8');
 const resizeOverwriteCheckbox = document.getElementById('resize-overwrite');
 const resizeSuffixInput = document.getElementById('resize-suffix');
 const resizeModeRadios = document.getElementsByName('resize-mode');
+const resizeFormatSelect = document.getElementById('resize-format');
+const resizeQualityInput = document.getElementById('resize-quality');
+const resizeQualityLabel = document.getElementById('resize-quality-label');
 
 // HSV Controls
 const hsvHInput = document.getElementById('hsv-h');
@@ -78,6 +85,14 @@ function updatePreviewFilter() {
 syncInputs(hsvHInput, hsvHVal);
 syncInputs(hsvSInput, hsvSVal);
 syncInputs(hsvVInput, hsvVVal);
+
+resizeFormatSelect.addEventListener('change', () => {
+    if (resizeFormatSelect.value === 'jpg') {
+        resizeQualityLabel.style.display = 'block';
+    } else {
+        resizeQualityLabel.style.display = 'none';
+    }
+});
 
 statusDiv.textContent = 'Ready (Direct Mode)';
 
@@ -251,6 +266,7 @@ resizeDropZone.addEventListener('drop', async (e) => {
         resizeDropZone.textContent = 'Processing...';
         let processedCount = 0;
         let errorCount = 0;
+        let errorMessages = [];
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
@@ -322,9 +338,34 @@ resizeDropZone.addEventListener('drop', async (e) => {
                     }
                 }
 
-                // Handle PNG8 (Quantization)
+                // Determine output path and format
                 let outputPath;
-                if (resizePng8Checkbox.checked) {
+                const dir = path.dirname(filePath);
+                const originalExt = path.extname(filePath);
+                const name = path.basename(filePath, originalExt);
+                
+                let finalExt = originalExt;
+                const format = resizeFormatSelect.value;
+                if (format !== 'original') {
+                    finalExt = '.' + format;
+                }
+
+                // Prepare write options
+                const writeOptions = {};
+                if (finalExt.toLowerCase() === '.jpg' || finalExt.toLowerCase() === '.jpeg') {
+                    const quality = parseInt(resizeQualityInput.value) || 80;
+                    writeOptions.quality = quality;
+                }
+
+                if (resizeOverwriteCheckbox.checked) {
+                    outputPath = path.join(dir, name + finalExt);
+                } else {
+                    const suffix = resizeSuffixInput.value || '_resized';
+                    outputPath = path.join(dir, `${name}${suffix}${finalExt}`);
+                }
+
+                // Handle PNG8 (Quantization) - Only if target is PNG
+                if (resizePng8Checkbox.checked && finalExt.toLowerCase() === '.png') {
                     const { execFile } = require('child_process');
                     const path = require('path');
                     const fs = require('fs');
@@ -348,31 +389,29 @@ resizeDropZone.addEventListener('drop', async (e) => {
 
                     const pngBuffer = await image.getBuffer('image/png');
                     
-                    // Determine output path
-                    if (resizeOverwriteCheckbox.checked) {
-                        outputPath = filePath;
-                    } else {
-                        const dir = path.dirname(filePath);
-                        const ext = path.extname(filePath);
-                        const name = path.basename(filePath, ext);
-                        const suffix = resizeSuffixInput.value || '_resized';
-                        outputPath = path.join(dir, `${name}${suffix}${ext}`);
-                    }
-
                     // Use execFile to pipe buffer to pngquant
                     await new Promise((resolve, reject) => {
-                        const child = execFile(pngquantPath, ['--quality=60-80', '-', '--output', outputPath], {
+                        const child = execFile(pngquantPath, ['--quality=60-80', '-'], {
                             encoding: 'buffer',
-                            maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+                            maxBuffer: 1024 * 1024 * 50 // 50MB buffer
                         }, (error, stdout, stderr) => {
                             if (error) {
                                 // pngquant returns 98 or 99 for low quality, which is technically an error but might be acceptable.
                                 // However, usually we want it to succeed.
                                 console.error('pngquant error:', error);
-                                console.error('pngquant stderr:', stderr.toString());
+                                const stderrStr = stderr.toString();
+                                console.error('pngquant stderr:', stderrStr);
+                                error.stderr = stderrStr;
                                 reject(error);
                             } else {
-                                resolve();
+                                // Write stdout buffer to file using Node.js fs to avoid path encoding issues
+                                fs.writeFile(outputPath, stdout, (err) => {
+                                    if (err) {
+                                        reject(err);
+                                    } else {
+                                        resolve();
+                                    }
+                                });
                             }
                         });
 
@@ -381,26 +420,25 @@ resizeDropZone.addEventListener('drop', async (e) => {
                     });
 
                 } else {
-                    // Determine output path
-                    if (resizeOverwriteCheckbox.checked) {
-                        outputPath = filePath;
-                    } else {
-                        const dir = path.dirname(filePath);
-                        const ext = path.extname(filePath);
-                        const name = path.basename(filePath, ext);
-                        const suffix = resizeSuffixInput.value || '_resized';
-                        outputPath = path.join(dir, `${name}${suffix}${ext}`);
-                    }
-                    await image.write(outputPath);
+                    await image.write(outputPath, writeOptions);
                 }
                 processedCount++;
             } catch (err) {
                 console.error(`Error processing ${filePath}:`, err);
                 errorCount++;
+                let msg = err.message || err;
+                if (err.stderr) {
+                    msg += `\nStderr: ${err.stderr}`;
+                }
+                errorMessages.push(`${path.basename(filePath)}: ${msg}`);
             }
         }
 
-        statusDiv.textContent = `Done! Processed ${processedCount} files. ${errorCount > 0 ? `(${errorCount} errors)` : ''}`;
+        if (errorCount > 0) {
+            statusDiv.innerHTML = `Done! Processed ${processedCount} files.<br><span style="color: red;">Errors:<br>${errorMessages.join('<br>')}</span>`;
+        } else {
+            statusDiv.textContent = `Done! Processed ${processedCount} files.`;
+        }
         resizeDropZone.textContent = 'Success!';
         setTimeout(() => {
             resizeDropZone.innerHTML = 'Drag & Drop Image<br>(Resize/Convert)';
@@ -457,6 +495,160 @@ rtDropZone.addEventListener('drop', (e) => {
 rtScaleInput.addEventListener('input', (e) => {
     const val = e.target.value;
     rtImage.style.width = `${val}%`;
-    statusDiv.textContent = `Scale: ${val}%`;
 });
 */
+
+// Audio Tools
+const audioDropZone = document.getElementById('audio-drop-zone');
+const audioBitrate = document.getElementById('audio-bitrate');
+const audioStatus = document.getElementById('audio-status');
+const audioOverwriteCheckbox = document.getElementById('audio-overwrite');
+
+audioDropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    audioDropZone.classList.add('dragover');
+    audioDropZone.textContent = 'Drop Audio/Folder!';
+});
+
+audioDropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    audioDropZone.classList.remove('dragover');
+    audioDropZone.textContent = 'Drop WAV/MP3/Folder';
+});
+
+// Helper to recursively find audio files
+function findAudioFiles(dirPath, fileList = []) {
+    const files = fs.readdirSync(dirPath);
+    for (const file of files) {
+        const fullPath = path.join(dirPath, file);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+            findAudioFiles(fullPath, fileList);
+        } else {
+            const ext = path.extname(fullPath).toLowerCase();
+            if (ext === '.wav' || ext === '.mp3') {
+                fileList.push(fullPath);
+            }
+        }
+    }
+    return fileList;
+}
+
+function processAudioFile(filePath, bitrate, overwrite) {
+    return new Promise((resolve, reject) => {
+        const ext = path.extname(filePath).toLowerCase();
+        const dir = path.dirname(filePath);
+        const name = path.basename(filePath, ext);
+        
+        let outputPath;
+        if (overwrite) {
+            // If overwriting, we might need a temp file if it's the same format
+            // But ffmpeg might handle it or fail. Safer to write to temp then rename.
+            // However, if converting wav to mp3, overwrite means delete wav and keep mp3? 
+            // Or just name the mp3 same as wav (but different extension)?
+            // "Overwrite original" usually means replace the file.
+            // If wav -> mp3, "overwrite" implies we want [name].mp3. If [name].wav exists, we keep it?
+            // Usually "overwrite" in converters means "don't add suffix".
+            // If I have song.wav, output is song.mp3.
+            // If I have song.mp3, output is song.mp3 (replacing original).
+            
+            if (ext === '.wav') {
+                // WAV -> MP3. "Overwrite" means output is name.mp3.
+                outputPath = path.join(dir, `${name}.mp3`);
+            } else {
+                // MP3 -> MP3. Overwrite means replace original.
+                // We can't write to same file while reading.
+                // So write to temp, then move.
+                outputPath = path.join(dir, `${name}_temp.mp3`);
+            }
+        } else {
+            // Not overwrite: add suffix
+            const suffix = `_${bitrate}`;
+            outputPath = path.join(dir, `${name}${suffix}.mp3`);
+        }
+
+        ffmpeg(filePath)
+            .audioBitrate(bitrate)
+            .toFormat('mp3')
+            .on('end', () => {
+                if (overwrite && ext === '.mp3') {
+                    // Replace original
+                    try {
+                        fs.unlinkSync(filePath);
+                        fs.renameSync(outputPath, filePath);
+                        resolve(filePath);
+                    } catch (e) {
+                        reject(e);
+                    }
+                } else {
+                    resolve(outputPath);
+                }
+            })
+            .on('error', (err) => {
+                reject(err);
+            })
+            .save(outputPath);
+    });
+}
+
+audioDropZone.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    audioDropZone.classList.remove('dragover');
+    audioDropZone.textContent = 'Scanning...';
+
+    const items = e.dataTransfer.files;
+    if (items.length === 0) return;
+
+    const audioFiles = [];
+    
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        let itemPath = item.path;
+        if (!itemPath && webUtils) {
+            itemPath = webUtils.getPathForFile(item);
+        }
+
+        if (fs.statSync(itemPath).isDirectory()) {
+            findAudioFiles(itemPath, audioFiles);
+        } else {
+            const ext = path.extname(itemPath).toLowerCase();
+            if (ext === '.wav' || ext === '.mp3') {
+                audioFiles.push(itemPath);
+            }
+        }
+    }
+
+    if (audioFiles.length === 0) {
+        audioStatus.textContent = 'No WAV/MP3 files found.';
+        audioDropZone.textContent = 'Drop WAV/MP3/Folder';
+        return;
+    }
+
+    const bitrate = audioBitrate.value;
+    const overwrite = audioOverwriteCheckbox.checked;
+    let processedCount = 0;
+    let errorCount = 0;
+
+    audioDropZone.textContent = `Processing 0/${audioFiles.length}`;
+
+    for (const file of audioFiles) {
+        try {
+            audioStatus.textContent = `Processing: ${path.basename(file)}`;
+            await processAudioFile(file, bitrate, overwrite);
+            processedCount++;
+        } catch (err) {
+            console.error(`Error processing ${file}:`, err);
+            errorCount++;
+        }
+        audioDropZone.textContent = `Processing ${processedCount}/${audioFiles.length}`;
+    }
+
+    audioStatus.textContent = `Done! Processed ${processedCount} files. ${errorCount > 0 ? `(${errorCount} errors)` : ''}`;
+    audioDropZone.textContent = 'Success!';
+    setTimeout(() => {
+        audioDropZone.textContent = 'Drop WAV/MP3/Folder';
+    }, 2000);
+});

@@ -133,7 +133,7 @@
                 <div class="controls-panel">
                     <h3>Resize & Convert</h3>
                                     <div class="control-group">
-                    <label>Scale:</label>
+                    <label><input type="radio" name="resize-mode" value="scale" checked> Scale:</label>
                     <input type="number" id="resize-scale" value="1.0" step="0.1" min="0.1">
                 </div>
                     <label><input type="radio" name="resize-mode" value="fixed"> Fixed: <input type="number" id="resize-width" placeholder="W" style="width: 40px;"> x <input type="number" id="resize-height" placeholder="H" style="width: 40px;"></label>
@@ -158,6 +158,17 @@
                             </div>
                         </div>
                     </div>
+
+                    <label>Format:
+                        <select id="resize-format">
+                            <option value="original">Original</option>
+                            <option value="png">PNG</option>
+                            <option value="jpg">JPG</option>
+                            <option value="bmp">BMP</option>
+                        </select>
+                    </label>
+
+                    <label id="resize-quality-label" style="display: none;">Quality: <input type="number" id="resize-quality" value="80" min="10" max="100" style="width: 45px;"></label>
 
                     <label><input type="checkbox" id="resize-png8"> Save as PNG8</label>
                     <label><input type="checkbox" id="resize-overwrite"> Overwrite original</label>
@@ -194,6 +205,30 @@
                 <div id="rt-preview" style="margin-top: 10px; text-align: center; overflow: auto; border: 1px solid #eee; display: none; background: #fff; max-height: 300px;">
                     <img id="rt-image" style="width: 100%; display: block;">
                 </div>
+            </div>
+
+            <!-- Column 5: Audio Tools -->
+            <div class="drop-column">
+                <div class="controls-panel">
+                    <h3>Audio Tools</h3>
+                    <p style="font-size: 12px; color: #666; margin: 0;">WAV -> MP3 / Compress MP3</p>
+                </div>
+                <div id="audio-drop-zone" class="drop-zone">
+                    Drop WAV/MP3/Folder
+                </div>
+                <div class="controls">
+                    <label>
+                        Bitrate:
+                        <select id="audio-bitrate">
+                            <option value="128k">128k (Normal)</option>
+                            <option value="192k" selected>192k (High)</option>
+                            <option value="320k">320k (Max)</option>
+                            <option value="64k">64k (Low/Voice)</option>
+                        </select>
+                    </label>
+                    <label><input type="checkbox" id="audio-overwrite"> Overwrite original</label>
+                </div>
+                <div id="audio-status" style="font-size: 12px; color: #333;"></div>
             </div>
         </div>
         <div id="status">Ready</div>
