@@ -10,7 +10,7 @@
     "dist": "electron-builder",
     "build": "electron-builder",
     "dist:win": "electron-builder --win",
-    "dist:mac": "electron-builder --mac",
+    "dist:mac": "electron-builder --mac --x64 --arm64",
     "dist:linux": "electron-builder --linux"
   },
   "build": {
