@@ -51,11 +51,7 @@ jobs:
           files: |
             dist/*.exe
             dist/*.dmg
-            dist/*-arm64.dmg
-            dist/*-x64.dmg
             dist/*.zip
-            dist/*-arm64.zip
-            dist/*-x64.zip
             dist/*.AppImage
             dist/*.deb
           draft: false
